@@ -139,12 +139,31 @@ void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, 
 // associate a given bounding box with the keypoints it contains
 void clusterKptMatchesWithROI(BoundingBox &boundingBox, std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPoint> &kptsCurr, std::vector<cv::DMatch> &kptMatches)
 {
+    std::map<float, cv::DMatch> matchWithDistance;
     // Loop over all matches in the current frame
     for (cv::DMatch match : kptMatches) {
-        if (boundingBox.roi.contains(kptsCurr[match.trainIdx].pt)) {
-            boundingBox.kptMatches.push_back(match);
+        cv::Point center(boundingBox.roi.tl().x + boundingBox.roi.width / 2, boundingBox.roi.tl().y + boundingBox.roi.height / 2);
+        
+        cv::Point2f kpPosition = kptsCurr[match.trainIdx].pt;
+        if (boundingBox.roi.contains(kpPosition))
+        {
+            //boundingBox.kptMatches.push_back(match);
+            float dist = sqrt((kpPosition.x - center.x) * (kpPosition.x - center.x) +
+                                (kpPosition.y - center.y) * (kpPosition.y - center.y)); 
+            matchWithDistance[dist] = match;
         }
     }
+
+    //sort according to the distances
+    auto itrToErase = matchWithDistance.begin();
+    std::advance(itrToErase, matchWithDistance.size() * 0.9);
+    matchWithDistance.erase(itrToErase, matchWithDistance.end());
+    for(auto itr : matchWithDistance)
+    {
+        
+        boundingBox.kptMatches.push_back(itr.second);
+    }
+
 }
 
 
