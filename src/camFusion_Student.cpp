@@ -141,27 +141,33 @@ void clusterKptMatchesWithROI(BoundingBox &boundingBox, std::vector<cv::KeyPoint
 {
     std::map<float, cv::DMatch> matchWithDistance;
     // Loop over all matches in the current frame
-    for (cv::DMatch match : kptMatches) {
-        cv::Point center(boundingBox.roi.tl().x + boundingBox.roi.width / 2, boundingBox.roi.tl().y + boundingBox.roi.height / 2);
-        
-        cv::Point2f kpPosition = kptsCurr[match.trainIdx].pt;
-        if (boundingBox.roi.contains(kpPosition))
+    float distAvr = 0.0;
+    for (cv::DMatch match : kptMatches) 
+    {    
+        cv::Point2f kpPositionCurr = kptsCurr[match.trainIdx].pt;
+        cv::Point2f kpPositionPrev = kptsPrev[match.queryIdx].pt;
+        if (boundingBox.roi.contains(kpPositionCurr))
         {
+
             //boundingBox.kptMatches.push_back(match);
-            float dist = sqrt((kpPosition.x - center.x) * (kpPosition.x - center.x) +
-                                (kpPosition.y - center.y) * (kpPosition.y - center.y)); 
+            float dist = sqrt((kpPositionCurr.x - kpPositionPrev.x) * (kpPositionCurr.x - kpPositionPrev.x) +
+                                (kpPositionCurr.y - kpPositionPrev.y) * (kpPositionCurr.y - kpPositionPrev.y)); 
             matchWithDistance[dist] = match;
+            distAvr += dist;
         }
     }
+    //Calculate the average mean
+    distAvr = distAvr / matchWithDistance.size();
 
-    //sort according to the distances
-    auto itrToErase = matchWithDistance.begin();
-    std::advance(itrToErase, matchWithDistance.size() * 0.9);
-    matchWithDistance.erase(itrToErase, matchWithDistance.end());
+    //Determine a adaptive threshold by using the average of all distances
+    //20% percent more seems a good threshold for elimination
+    float threshold = distAvr * 1.2;
+
     for(auto itr : matchWithDistance)
     {
         
-        boundingBox.kptMatches.push_back(itr.second);
+        if(itr.first < threshold)
+            boundingBox.kptMatches.push_back(itr.second);
     }
 
 }
